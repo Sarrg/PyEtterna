@@ -23,3 +23,11 @@ class NoteColor(Enum): # based on subtract colors
     ORANGE = [1.0/32 * (2*i)+1 for i in range(16)]
     CYAN = [1.0/48 * (i+1+(2*((i+1)//2))) for i in range(16)]
     GREY = 0
+
+class Song(object):
+    charts = []
+    bpms = {}
+    offset = 0.0
+    
+    def __init__(self):
+        pass

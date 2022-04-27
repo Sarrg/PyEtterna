@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 import numpy as np
+from .types import Song
+from .chart import Chart
 
 def load_profile(path):
     parser = ET.XMLParser(encoding="utf-8")
@@ -45,30 +47,38 @@ def load_data(profile, path):
                     data.append(arr)
     return data
 
-
-
-def load_song(path, return_measures=False):
-    song = {}
-    song['steps'] = []
+def load_song(path):
+    song = Song()
     instep = False
     measure = 0
-    bpm = 210 # todo
+    bpm = 120
     notes = []
+    
+    def get_time(measure):
+        p_timing, p_time, p_bpm = None, 0, None
+        for timing, (time, bpm) in song.bpms.items():
+            if int(timing / 4) > measure:
+                if p_bpm is None:
+                    p_timing, p_time, p_bpm = timing, time, bpm
+                diff = measure*4 - p_timing 
+                return p_time + diff * 60.0 / p_bpm
+            p_timing, p_time, p_bpm = timing, time, bpm
+        return 0
+    
     with open(path) as f:
         line = f.readline()
         while line:
-            time_step = 4.0 * 60.0 / bpm
             if instep:
                 if line[0] in [',', ';']:
                     for i in range(len(notes)):
                         if notes[i] != '0000':
-                            measure_time = (measure + (i / len(notes))) 
-                            time = measure_time if return_measures else measure_time * time_step - song['offset']
-                            step[time] = notes[i]
+                            note_measure = (measure + (i / len(notes)))
+                            time = get_time(note_measure)
+                            step[note_measure] = (time, notes[i])
                     notes = []
                     measure = measure + 1
                     if line[0] == ';':
-                        song['steps'].append(step)
+                        song.charts.append(Chart(step, song.bpms))
                         notes.clear()
                         instep = False
                 else:
@@ -79,7 +89,7 @@ def load_song(path, return_measures=False):
                     if len(s) == 2:
                         propName = s[0][1:].lower()
                         if propName == "notes":
-                            instep = True        
+                            instep = True
                             measure = 0                        
                             step = {}
                             f.readline()
@@ -89,25 +99,34 @@ def load_song(path, return_measures=False):
                             f.readline()
                             
                         if len(s[1]) > 2:
-                            prop = s[1][:-2]
+                            prop = s[1].rstrip('\n\r')
                             try:
-                                prop = float(prop)
+                                prop = float(prop.rstrip(';'))
                             except ValueError:
                                 pass
                             
                             if propName == "bpms":
-                                song[propName] = {}
+                                timing = 0
+                                time = -song.offset
+                                bpm = 1
                                 while len(line) != 0:
-                                    if line[-2] == ";":
-                                        break;
-                                    bpmsig = prop.split('=')
-                                    bpm = float(bpmsig[1])
-                                    song[propName][float(bpmsig[0].replace(',',''))] = bpm
 
+                                    bpmsig = prop.split('=')
+                                    if len(bpmsig) == 2:
+                                        new_timing = float(bpmsig[0].replace(',', ''))
+                                        diff = new_timing - timing
+                                        time += diff * 60.0 / bpm
+                                        timing = new_timing
+                                        bpm = float(bpmsig[1])
+                                    
+                                    song.bpms[timing] = (time, bpm)
+                                    
+                                    if ';' in line:
+                                        break;
                                     line = f.readline()
-                                    prop = line[:-2]
+                                    prop = line.rstrip('\n\r')
                             else:
-                                song[propName] = prop
+                                song.__setattr__(propName, prop)
                                 
             line = f.readline()
         
