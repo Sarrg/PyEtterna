@@ -1,7 +1,8 @@
 import xml.etree.ElementTree as ET
 import numpy as np
-from .types import Song
+from .chart import Song
 from .chart import Chart
+from .chart import timing
 
 def load_profile(path):
     parser = ET.XMLParser(encoding="utf-8")
@@ -51,19 +52,7 @@ def load_song(path):
     song = Song()
     instep = False
     measure = 0
-    bpm = 120
     notes = []
-    
-    def get_time(measure):
-        p_timing, p_time, p_bpm = None, 0, None
-        for timing, (time, bpm) in song.bpms.items():
-            if int(timing / 4) > measure:
-                if p_bpm is None:
-                    p_timing, p_time, p_bpm = timing, time, bpm
-                diff = measure*4 - p_timing 
-                return p_time + diff * 60.0 / p_bpm
-            p_timing, p_time, p_bpm = timing, time, bpm
-        return 0
     
     with open(path) as f:
         line = f.readline()
@@ -73,8 +62,8 @@ def load_song(path):
                     for i in range(len(notes)):
                         if notes[i] != '0000':
                             note_measure = (measure + (i / len(notes)))
-                            time = get_time(note_measure)
-                            step[note_measure] = (time, notes[i])
+                            time = timing.get_time(note_measure, song.bpms)
+                            step[note_measure] = [time, notes[i]]
                     notes = []
                     measure = measure + 1
                     if line[0] == ';':
@@ -106,20 +95,19 @@ def load_song(path):
                                 pass
                             
                             if propName == "bpms":
-                                timing = 0
+                                p_beat = 0
                                 time = -song.offset
                                 bpm = 1
                                 while len(line) != 0:
 
                                     bpmsig = prop.split('=')
                                     if len(bpmsig) == 2:
-                                        new_timing = float(bpmsig[0].replace(',', ''))
-                                        diff = new_timing - timing
+                                        beat = float(bpmsig[0].replace(',', ''))
+                                        diff = beat - p_beat
                                         time += diff * 60.0 / bpm
-                                        timing = new_timing
+                                        p_beat = beat
                                         bpm = float(bpmsig[1])
-                                    
-                                    song.bpms[timing] = (time, bpm)
+                                        song.bpms[beat] = (time, bpm)
                                     
                                     if ';' in line:
                                         break;

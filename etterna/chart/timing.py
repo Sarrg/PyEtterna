@@ -1,4 +1,4 @@
-from ..types import NoteColor, NoteSnap
+from ._types import NoteColor, NoteSnap
 
 def is_color(measure, color):
     submeasure = measure - int(measure)
@@ -31,3 +31,30 @@ def get_next_measure(measure, snap: NoteSnap = NoteSnap._192THS):
     submeasure = measure - int(measure)
     snap_step = 1 / snap.value
     return (int(measure/snap_step) + 1) * snap_step
+
+
+def get_nearest_measure(time: float, bpms, with_notes=False):
+    measure = 0
+
+    p_beat, p_time, p_bpm = None, 0, None
+    for beat, (beat_time, bpm) in bpms.items():
+        if beat_time > time:
+            break
+        p_beat, p_time, p_bpm = beat, beat_time, bpm
+
+    if p_bpm != None:
+        diff = time - p_time
+        measure = (p_beat / 4) + (diff * p_bpm / (60.0 * 4))
+    return (measure // (1/192)) / 192
+
+def get_time(measure: float, bpms):
+    p_beat, p_time, p_bpm = None, 0, None
+    for beat, (time, bpm) in bpms.items():
+        if beat > measure*4:
+            break
+        p_beat, p_time, p_bpm = beat, time, bpm
+        
+    if p_bpm != None:
+        diff = measure*4 - p_beat
+        return p_time + diff * 60.0 / p_bpm
+    return 0
