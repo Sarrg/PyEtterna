@@ -2,10 +2,6 @@ import unittest
 import numpy as np
 import numpy.testing
 
-
-import sys
-sys.path.append("..")
-sys.path.append('D:/Dev/Python/PyEtterna')
 from etterna import chart
 
 
